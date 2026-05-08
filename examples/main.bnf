@@ -1,0 +1,3 @@
+syntax         = rule | rule syntax*
+
+opt-whitespace = " " (opt-whitespace+ | [A-Z])?
