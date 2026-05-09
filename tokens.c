@@ -1,12 +1,14 @@
+#pragma once
+
 #include <ctype.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include "helpers.c"
 
 static char* g_text;
 
 
-typedef enum TokenType TokenType;
-enum TokenType {
+typedef enum {
     // Rule identifiers, like 'expr'
     T_IDENT,
     
@@ -18,6 +20,7 @@ enum TokenType {
     T_QUEST, // ?
     T_OPEN,  // (
     T_CLOSE, // )
+    T_NEWLINE, // \n
     
     // Ranged options, like [A-Z], [xyz], [0-9a-f]
     T_RANGE,
@@ -27,21 +30,21 @@ enum TokenType {
     
     // End of File
     T_EOF
-};
+} TokenType;
 
 typedef struct Token Token;
 struct Token {
     TokenType typ;
-    char* loc;
-    size_t len;
+    String_View value;
     Token* next;
 };
 
 Token* new_token(TokenType typ, char* q, char* p) {
     Token* token = calloc(1, sizeof(Token));
+
     token->typ = typ;
-    token->loc = q;
-    token->len = p - q;
+    token->value = (String_View) { .str = q, .len = p - q };
+    token->next = NULL;
 }
 
 void error(char* message) {
@@ -49,7 +52,7 @@ void error(char* message) {
     exit(1);
 }
 
-void print_token(Token t) {
+char* str_tokentype(TokenType t) {
     char* token_names[] = {
         "T_IDENT",
         "T_EQ\t =",
@@ -59,26 +62,38 @@ void print_token(Token t) {
         "T_QUEST\t ?",
         "T_OPEN\t (",
         "T_CLOSE\t )",
+        "T_NEWLINE\t \\n",
         "T_RANGE",
         "T_STR",
         "T_EOF"
     };
 
-    printf("%s\t %.*s\n", token_names[t.typ], (int) t.len, (char *) t.loc);
+    return token_names[t];
+}
+
+void print_token(Token t) {
+
+    printf("%s\t", str_tokentype(t.typ));
+    printf("%.*s\n", (int) t.value.len, t.value.str);
 }
 
 Token* tokenise(char* text) {
-    g_text = text;
-    Token head = { };
-
+    Token head = { .next = NULL };
     Token* cur = &head;
-    char* p = g_text;
+    char* p = g_text = text;
     while (*p) {
 
-        // Ignore comments
+        // Parse comments as newlines
         if (*p == '/' && *(p + 1) == '/') {
             p += 2;
             while (*p != '\n' && *p != '\0') p += 1;
+            cur = cur->next = new_token(T_NEWLINE, p, p);
+        }
+
+        // Parse newlines
+        else if (*p == '\n') {
+            cur = cur->next = new_token(T_NEWLINE, p, p);
+            p += 1;
         }
 
         // Ignore whitespaces
@@ -134,6 +149,10 @@ Token* tokenise(char* text) {
         }
     }
 
+    if (cur->typ != T_NEWLINE) 
+        // Inject new line at the end if there isn't any
+        cur = cur->next = new_token(T_NEWLINE, p, p);
+    
     cur = cur->next = new_token(T_EOF, p, p);
     return head.next;
 }

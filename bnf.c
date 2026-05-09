@@ -2,16 +2,8 @@
 #include <stdlib.h>
 
 #include "tokens.c"
+#include "parse.c"
 
-#define da_append(xs, x) \
-do {\
-    if (xs.count >= xs.capacity) {\
-        if (xs.capacity == 0) xs.capacity = 256;\
-        else xs.capacity += 2;\
-        xs.items = realloc(xs.items, xs.capacity * sizeof(*xs.items));\
-    }\
-    xs.items[xs.count++] = x;\
-} while(0)
 
 char* read_file(const char * path) {
     FILE *ptr = fopen(path, "r");
@@ -29,19 +21,19 @@ char* read_file(const char * path) {
     return data;
 }
 
-
-
+void print_tokens(Token* t) {
+    do {
+        print_token(*t);
+    } while (t = t->next);
+}
 
 
 int main(int argc, char* args[]) {
     char* fd = read_file("./examples/main.bnf");
 
     Token* token = tokenise(fd);
-
-    do {
-        print_token(*token);
-    } while (token = token->next);
-
+    Syntax* syntax = parse_syntax(token);
+    print_syntax(syntax);
 
     return 0;
 }
