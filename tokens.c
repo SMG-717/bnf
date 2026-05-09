@@ -15,6 +15,7 @@ typedef enum {
     // Rule decorators
     T_EQ,    // =
     T_STAR,  // *
+    T_DOT,   // .
     T_PLUS,  // +
     T_PIPE,  // |
     T_QUEST, // ?
@@ -55,14 +56,15 @@ void error(char* message) {
 char* str_tokentype(TokenType t) {
     char* token_names[] = {
         "T_IDENT",
-        "T_EQ\t =",
-        "T_STAR\t *",
-        "T_PLUS\t +",
-        "T_PIPE\t |",
-        "T_QUEST\t ?",
-        "T_OPEN\t (",
-        "T_CLOSE\t )",
-        "T_NEWLINE\t \\n",
+        "T_EQ",
+        "T_STAR",
+        "T_DOT",
+        "T_PLUS",
+        "T_PIPE",
+        "T_QUEST",
+        "T_OPEN",
+        "T_CLOSE",
+        "T_NEWLINE",
         "T_RANGE",
         "T_STR",
         "T_EOF"
@@ -72,7 +74,6 @@ char* str_tokentype(TokenType t) {
 }
 
 void print_token(Token t) {
-
     printf("%s\t", str_tokentype(t.typ));
     printf("%.*s\n", (int) t.value.len, t.value.str);
 }
@@ -109,32 +110,26 @@ Token* tokenise(char* text) {
         }
 
         // Process punctuation
-        else if (*p == '=') cur = cur->next = new_token(T_EQ, p, ++p);
-        else if (*p == '|') cur = cur->next = new_token(T_PIPE, p, ++p);
-        else if (*p == '+') cur = cur->next = new_token(T_PLUS, p, ++p);
-        else if (*p == '?') cur = cur->next = new_token(T_QUEST, p, ++p);
-        else if (*p == '*') cur = cur->next = new_token(T_STAR, p, ++p);
-        else if (*p == '(') cur = cur->next = new_token(T_OPEN, p, ++p);
-        else if (*p == ')') cur = cur->next = new_token(T_CLOSE, p, ++p);
-        
+        else if (*p == '=') { cur = cur->next = new_token(T_EQ, p, p + 1); p++; }
+        else if (*p == '|') { cur = cur->next = new_token(T_PIPE, p, p + 1); p++; }
+        else if (*p == '+') { cur = cur->next = new_token(T_PLUS, p, p + 1); p++; }
+        else if (*p == '?') { cur = cur->next = new_token(T_QUEST, p, p + 1); p++; }
+        else if (*p == '*') { cur = cur->next = new_token(T_STAR, p, p + 1); p++; }
+        else if (*p == '(') { cur = cur->next = new_token(T_OPEN, p, p + 1); p++; }
+        else if (*p == ')') { cur = cur->next = new_token(T_CLOSE, p, p + 1); p++; }
+        else if (*p == '.') { cur = cur->next = new_token(T_DOT, p, p + 1); p++; }
+
         // Process string literals
-        else if (*p == '\'') {
+        else if (*p == '\'' || *p == '\"') {
             char* q = p;
-            while (*++p != '\'') {
-                if (*p == '\0' || *p == '\n') error("Unclosed string literal.\n");
+            char quote = *p;
+            while (*++p != quote) {
+                if (*p == '\\') p++;
+                else if (*p == '\0' || *p == '\n') error("Unclosed string literal.\n");
             }
             cur = cur->next = new_token(T_STR, q, ++p);
         }
-        
-        // Process string literals
-        else if (*p == '"') {
-            char* q = p;
-            while (*++p != '"') {
-                if (*p == '\0' || *p == '\n') error("Unclosed string literal.\n");
-            }
-            cur = cur->next = new_token(T_STR, q, ++p);
-        }
-        
+
         // Process range literals
         else if (*p == '[') {
             char* q = p;
@@ -145,6 +140,7 @@ Token* tokenise(char* text) {
         }
 
         else {
+            // throw error?
             p += 1;
         }
     }

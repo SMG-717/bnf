@@ -15,6 +15,7 @@ typedef enum {
     G_ID,
     G_RANGE,
     G_STR,
+    G_ANY,
     G_GROUP,
 } GeneratorType;
 
@@ -33,6 +34,9 @@ struct Generator {
 
     // For ids and literals
     String_View value;
+
+    // For literals
+    char* str_value;
 
     // For groups
     struct {
@@ -75,13 +79,49 @@ typedef struct {
     } rules;
 } Syntax;
 
+
+char* parse_string_literal(String_View view) {
+
+    char* str = view_to_cstr(view);
+
+    // Assume str[0] = str[len - 1] = ' or "
+    int i = 0;
+    int j = 1;
+    while (j < view.len - 1) {
+        if (str[j] == '\\') {
+            switch (str[++j]) {
+                case '\\':
+                case '\'':
+                case '\"': str[i++] = str[j]; break;
+                case 't':  str[i++] = '\t'; break;
+                case 'n':  str[i++] = '\n'; break;
+                case 'v':  str[i++] = '\v'; break;
+                case 'r':  str[i++] = '\r'; break;
+                default: error("Invalid string literal");
+            }
+            j++;
+        }
+        else str[i++] = str[j++];
+
+    }
+    str[i] = '\0';
+    return str;
+}
+
 Generator* parse_generator() {
     Generator* gen = calloc(1, sizeof(Generator));
 
-    if (g_token->typ == T_STR) {
+    if (g_token->typ == T_DOT) {
+        // Parse string literal generator
+        gen->value = g_token->value;
+        gen->typ = G_ANY;
+    }
+
+    else if (g_token->typ == T_STR) {
         // Parse string literal generator
         gen->value = g_token->value;
         gen->typ = G_STR;
+        gen->str_value = parse_string_literal(gen->value);
     }
     
     else if (g_token->typ == T_IDENT) {
@@ -92,12 +132,9 @@ Generator* parse_generator() {
 
     else if (g_token->typ == T_RANGE) {
         // Parse range literal generator
-        // Simple for now
-        // gen->value = g_token->value;
         gen->typ = G_RANGE;
 
-        // Make sure the range is well formed
-
+        // Ensure the range is well formed
         if (
             g_token->value.str[0] != '[' ||
             g_token->value.str[2] != '-' ||
@@ -110,7 +147,6 @@ Generator* parse_generator() {
 
     else if (g_token->typ == T_OPEN) {
         // Parse id generator
-        // gen->value = g_token->value;
         gen->typ = G_GROUP;
         g_token = g_token->next;
 
