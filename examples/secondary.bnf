@@ -1,0 +1,4 @@
+greeting = salute #space+ name
+salute = 'hi' | 'hello' | 'sup'
+name = [A-Z] [a-z]*
+space = ' ' | '\t' | '\v' | '\r' | '\n'

@@ -6,6 +6,7 @@
 
 static Token* g_token;
 typedef struct Option Option;
+typedef struct OptionList OptionList;
 typedef struct Generator Generator;
 typedef struct Rule Rule;
 
@@ -24,13 +25,21 @@ typedef enum {
     MOD_OPTIONAL,
     MOD_ATLEAST_1,
     MOD_ATLEAST_0,
-    MOD_RANGED,
+    // MOD_RANGED, // Not implemented for now
 } CountModifier;
 
 
+struct OptionList {
+    Option* items;
+    size_t count;
+    size_t capacity;
+};
+
 struct Generator {
     GeneratorType typ;
-    CountModifier mod; 
+    CountModifier mod;
+    int negative;
+    int invisible;
 
     // For ids and literals
     String_View value;
@@ -39,11 +48,7 @@ struct Generator {
     char* str_value;
 
     // For groups
-    struct {
-        Option* items;
-        size_t count;
-        size_t capacity;
-    } options;
+    OptionList options;
 
     // For ranges
     char min;
@@ -62,12 +67,8 @@ struct Option {
 
 
 struct Rule {
-    String_View name;
-    struct {
-        Option* items;
-        size_t count;
-        size_t capacity;
-    } options;
+    char* name;
+    OptionList options;
 };
 
 
@@ -110,6 +111,22 @@ char* parse_string_literal(String_View view) {
 
 Generator* parse_generator() {
     Generator* gen = calloc(1, sizeof(Generator));
+    gen->negative = 0;
+    gen->invisible = 0;
+
+    for (int i = 0; i < 2; i++) {
+
+        if (g_token->typ == T_BANG) {
+            // Parse string literal generator
+            gen->negative = 1;
+            g_token = g_token->next;
+        }
+        else if (g_token->typ == T_HASH) {
+            // Parse string literal generator
+            gen->invisible = 1;
+            g_token = g_token->next;
+        }
+    }
 
     if (g_token->typ == T_DOT) {
         // Parse string literal generator
@@ -128,6 +145,7 @@ Generator* parse_generator() {
         // Parse id generator
         gen->value = g_token->value;
         gen->typ = G_ID;
+        gen->str_value = view_to_cstr(gen->value); // should?
     }
 
     else if (g_token->typ == T_RANGE) {
@@ -170,13 +188,19 @@ Generator* parse_generator() {
     }
 
     else {
+
+        if (gen->negative) {
+            printf("Expected generator definition after '!'");
+            error("Could not parse generator");
+        }
+
         free(gen);
         return NULL;
         // printf("Unexpected token for generator: %s", str_tokentype(g_token->typ));
         // error("Could not parse generator");
     }
     g_token = g_token->next;
-    
+
     // Parse modifier
     gen->mod = MOD_NONE;
     if (g_token->typ == T_STAR) {
@@ -192,6 +216,11 @@ Generator* parse_generator() {
     else if (g_token->typ == T_QUEST) {
         gen->mod = MOD_OPTIONAL;
         g_token = g_token->next;
+    }
+
+    if (gen->typ == G_ANY && (gen->mod == MOD_ATLEAST_0 || gen->mod == MOD_ATLEAST_1)) {
+        printf("Error: '.' generators with variable modifiers ('*' or '+') are disallowed (for now).");
+        error("Could not parse generator");
     }
 
     return gen;
@@ -225,7 +254,7 @@ Rule* parse_rule() {
         error("Expected rule identifier.\n");
     }
 
-    rule->name = g_token->value;
+    rule->name = view_to_cstr(g_token->value);
     if ((g_token = g_token->next)->typ != T_EQ) {
         error("Expected token '='\n");
     }
@@ -271,6 +300,8 @@ Syntax* parse_syntax(Token* tokens) {
 
 void print_option(Option* option);
 void print_generator(Generator* gen) {
+    if (gen->invisible) printf("#");
+    if (gen->negative) printf("!");
     if (gen->typ == G_GROUP) {
         printf("(");
         print_option(gen->options.items);
@@ -301,7 +332,7 @@ void print_option(Option* option) {
 }
 
 void print_rule(Rule* rule) {
-    printf("  %.*s = ", (int) rule->name.len, rule->name.str);
+    printf("  %s = ", rule->name);
     print_option(rule->options.items);
     for (int i = 1; i < rule->options.count; i++) {
         printf(" | ");

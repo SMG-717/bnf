@@ -1,8 +1,9 @@
 syntax = rule*
-rule = name '=' options-list '\n'
-options-list = gen+ ('|' gen+)*
-gen = (range | str-lit | name | '(' options-list ')' ) mod?
-range = '[' . '-' . ']'
-str-lit = '\'' . '\'' | '\"' . '\"'
+rule = name #space* #'=' #space* options-list #space* #'\n'
+options-list = (gen #space*)+ (#'|' #space* (gen #space*)+)*
+gen = '!'? '#'? (range | str-lit | name | '.' | '(' #space* options-list #space* ')') mod?
+range = #'[' . '-' . #']'
+str-lit = #'\'' ('\\' . | !'\'')* #'\'' | #'"' ('\\' . | !'"')* #'"'
 name = [a-z] ([a-z] | [0-9] | '-')*
 mod = '*' | '+' | '?'
+space = ' ' | '\t' | '\v' | '\r'
