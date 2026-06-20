@@ -1,0 +1,12 @@
+Syntax:
+  greeting = salute #space+ name
+  salute = 'hi' | 'hello' | 'sup' | 'hey'
+  name = [a-z]+
+  space = ' ' | '\t' | '\v' | '\r' | '\n'
+
+[
+  greeting(
+    salute('hey'),
+    name('maciej')
+  )
+]

@@ -1,9 +1,4 @@
-syntax = rule*
-rule = name #space* #'=' #space* options-list #space* #'\n'
-options-list = (gen #space*)+ (#'|' #space* (gen #space*)+)*
-gen = '!'? '#'? (range | str-lit | name | '.' | '(' #space* options-list #space* ')') mod?
-range = #'[' . '-' . #']'
-str-lit = #'\'' ('\\' . | !'\'')* #'\'' | #'"' ('\\' . | !'"')* #'"'
-name = [a-z] ([a-z] | [0-9] | '-')*
-mod = '*' | '+' | '?'
-space = ' ' | '\t' | '\v' | '\r'
+greeting = salute #space+ name
+salute = 'hi' | 'hello' | 'sup' | 'hey'
+name = [a-z]+
+space = ' ' | '\t' | '\v' | '\r' | '\n'
